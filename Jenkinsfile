@@ -1,34 +1,36 @@
 pipeline {
     agent any
-
+    
     tools {
         maven 'Maven-3.9.0'
-        jdk 'OpenJDK-17'
+        jdk 'OpenJDK17'
     }
-
+    
     environment {
         NEXUS_VERSION = "nexus3"
         NEXUS_PROTOCOL = "http"
-        NEXUS_URL = "localhost:8090"
+        NEXUS_URL = "localhost:8081"
         NEXUS_REPOSITORY = "maven-snapshots"
         NEXUS_CREDENTIAL_ID = "nexus-credentials"
+        GITHUB_REPO = "https://github.com/suhaibmdv/jenkins_springboot_nexus.git"
     }
-
+    
     stages {
         stage('Checkout') {
             steps {
-                echo 'Checking out source code...'
-                checkout scm
+                echo 'Checking out source code from GitHub...'
+                git branch: 'main', url: "${GITHUB_REPO}"
+                // Alternative: checkout scm (uses the SCM configured in job)
             }
         }
-
+        
         stage('Build') {
             steps {
                 echo 'Building the application...'
                 sh 'mvn clean compile'
             }
         }
-
+        
         stage('Test') {
             steps {
                 echo 'Running tests...'
@@ -42,28 +44,33 @@ pipeline {
                 }
             }
         }
-
+        
         stage('Package') {
             steps {
                 echo 'Packaging the application...'
                 sh 'mvn package -DskipTests'
             }
+            post {
+                success {
+                    archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                }
+            }
         }
-
+        
         stage('Deploy to Nexus') {
             steps {
                 echo 'Deploying artifacts to Nexus...'
                 script {
                     pom = readMavenPom file: "pom.xml"
                     filesByGlob = findFiles(glob: "target/*.${pom.packaging}")
-
+                    
                     if(filesByGlob.length == 0) {
                         error "No artifacts found to deploy"
                     }
-
+                    
                     artifactPath = filesByGlob[0].path
                     artifactExists = fileExists artifactPath
-
+                    
                     if(artifactExists) {
                         nexusArtifactUploader(
                             nexusVersion: NEXUS_VERSION,
@@ -84,11 +91,14 @@ pipeline {
                                  type: "pom"]
                             ]
                         )
+                        echo "Artifact deployed successfully to Nexus"
+                    } else {
+                        error "Artifact file not found: ${artifactPath}"
                     }
                 }
             }
         }
-
+        
         stage('Integration Tests') {
             steps {
                 echo 'Running integration tests...'
@@ -96,26 +106,33 @@ pipeline {
             }
         }
     }
-
+    
     post {
         always {
+            echo 'Cleaning workspace...'
             cleanWs()
         }
         success {
             echo 'Pipeline executed successfully!'
+            // Uncomment if you have email configured
+            /*
             emailext(
-                subject: "SUCCESS: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+                subject: "SUCCESS: Job '${env.JOB_NAME} ${env.BUILD_NUMBER}'",
                 body: "Good news! The build ${env.BUILD_URL} completed successfully.",
                 to: "${env.CHANGE_AUTHOR_EMAIL}"
             )
+            */
         }
         failure {
             echo 'Pipeline failed!'
+            // Uncomment if you have email configured
+            /*
             emailext(
-                subject: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+                subject: "FAILED: Job '${env.JOB_NAME} ${env.BUILD_NUMBER}'",
                 body: "Build failed. Check console output at ${env.BUILD_URL}",
                 to: "${env.CHANGE_AUTHOR_EMAIL}"
             )
+            */
         }
     }
 }
