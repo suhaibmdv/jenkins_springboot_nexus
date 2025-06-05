@@ -3,13 +3,13 @@ pipeline {
     
     tools {
         maven 'Maven-3.9.0'
-        jdk 'OpenJDK17'
+        jdk 'OpenJDK-17'
     }
     
     environment {
         NEXUS_VERSION = "nexus3"
         NEXUS_PROTOCOL = "http"
-        NEXUS_URL = "localhost:8081"
+        NEXUS_URL = "localhost:8090"
         NEXUS_REPOSITORY = "maven-snapshots"
         NEXUS_CREDENTIAL_ID = "nexus-credentials"
         GITHUB_REPO = "https://github.com/suhaibmdv/jenkins_springboot_nexus.git"
