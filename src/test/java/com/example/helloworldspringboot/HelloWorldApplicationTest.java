@@ -13,3 +13,4 @@ class HelloWorldApplicationTest {
         // Test that Spring context loads successfully
     }
 }
+
